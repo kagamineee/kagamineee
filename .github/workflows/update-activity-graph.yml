@@ -13,9 +13,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Generate static contribution graph
+        env:
+          # 关键修复：显式将 Token 传递给环境变量
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 << 'PY'
-          import json, urllib.request, datetime, os
+          import json, urllib.request, os, sys
 
           user = "kagamineee"
           token = os.environ.get("GITHUB_TOKEN")
@@ -39,25 +42,43 @@ jobs:
               data=json.dumps({"query": query, "variables": {"user": user}}).encode(),
               headers={**headers, "Content-Type": "application/json"},
           )
-          data = json.loads(urllib.request.urlopen(req).read())
+          
+          try:
+              response = urllib.request.urlopen(req)
+              data = json.loads(response.read())
+          except urllib.error.HTTPError as e:
+              print(f"HTTP Error: {e.code} - {e.reason}")
+              print(e.read().decode())
+              sys.exit(1)
+          except Exception as e:
+              print(f"Error: {e}")
+              sys.exit(1)
+
+          if "errors" in data:
+              print("GraphQL Errors:", data["errors"])
+              sys.exit(1)
+
           weeks = data["data"]["user"]["contributionsCollection"]["contributionCalendar"]["weeks"]
 
-          # 你的主题色
+          # 主题配色 (深绿森林)
           BG = "#0f1a0f"
+          ZERO = "#1a2a1a"
           LOW = "#134e4a"
           MID = "#1a7f5a"
           HIGH = "#e6f4ef"
+          
           W, H = 53 * 12, 7 * 14 + 24
           cell, gap = 10, 2
           svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">',
                  f'<rect width="{W}" height="{H}" fill="{BG}"/>']
+          
           max_c = max((d["contributionCount"] for w in weeks for d in w["contributionDays"]), default=1) or 1
 
           for wi, week in enumerate(weeks):
               for di, day in enumerate(week["contributionDays"]):
                   c = day["contributionCount"]
                   if c == 0:
-                      fill = "#1a2a1a"  # 零贡献日的暗绿
+                      fill = ZERO
                   elif c <= max_c * 0.33:
                       fill = LOW
                   elif c <= max_c * 0.66:
@@ -67,11 +88,13 @@ jobs:
                   x, y = wi * 12, di * 14 + 20
                   svg.append(f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="2" fill="{fill}"/>')
           svg.append("</svg>")
+          
           with open("activity-graph.svg", "w") as f:
               f.write("\n".join(svg))
+          print("Successfully generated activity-graph.svg")
           PY
 
-      - name: Commit
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
