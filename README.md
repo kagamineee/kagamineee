@@ -44,7 +44,7 @@
 
 
 <p align="center">
-  <img src="https://github-readme-activity-graph.vercel.app/graph?username=kagamineee&hide_border=true&bg_color=0f1a0f&color=1a7f5a&line=134e4a&point=e6f4ef&area=true&area_color=134e4a" alt="Contribution graph" />
+  <img src="https://raw.githubusercontent.com/kagamineee/kagamineee/main/activity-graph.svg" alt="Contribution graph" />
 </p>
 
 
